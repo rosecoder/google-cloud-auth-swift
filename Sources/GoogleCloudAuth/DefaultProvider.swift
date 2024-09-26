@@ -32,6 +32,8 @@ public actor DefaultProvider: Provider {
     }
 
     private nonisolated func resolveProvider() async throws -> Provider {
+        let logger = Logger(label: "authorization.default-provider")
+
         // 1. User explicitly set a provider
         if let provider = await DefaultProviderCoordinator.shared.provider {
             return provider
@@ -43,7 +45,17 @@ public actor DefaultProvider: Provider {
         }
 
         // 3. Try to use gcloud configured credentials
-        // TODO: Implement
+        if let googleCloudSDKProvider = try GoogleCloudSDKProvider() {
+            logger.warning("""
+Your application has authenticated using end user credentials from Google
+Cloud SDK. We recommend that most server applications use service accounts
+instead. If your application continues to use end user credentials from Cloud
+SDK, you might receive a "quota exceeded" or "API not enabled" error. For
+more information about service accounts, see
+https://cloud.google.com/docs/authentication/.
+""")
+            return googleCloudSDKProvider
+        }
 
         // 4. Fallback to assume running in GCP
         return MetadataProvider()
