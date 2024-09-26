@@ -5,7 +5,7 @@ This package provides a Swift implementation for authenticating with Google Clou
 ## Example usage
 
 ```swift
-let authorization = try Authorization(scopes: ["https://www.googleapis.com/auth/cloud-platform"], eventLoopGroup: <#eventLoopGroup#>)
+let authorization = Authorization(scopes: ["https://www.googleapis.com/auth/cloud-platform"], eventLoopGroup: <#eventLoopGroup#>)
 let accessToken = try await authorization.accessToken()
 print(accessToken)
 ```
@@ -13,7 +13,7 @@ print(accessToken)
 You can also implicitly use a specific method (aka provider) for authentication:
 
 ```swift
-let authorization = try Authorization(
+let authorization = Authorization(
     scopes: ["https://www.googleapis.com/auth/cloud-platform"],
     provider: ServiceAccountProvider(credentials: <#credentials#>),
     eventLoopGroup: <#eventLoopGroup#>

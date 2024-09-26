@@ -8,7 +8,7 @@ import Foundation
     @Test func getAccessTokenNotExpiredTwice() async throws {
         let eventLoopGroup = MultiThreadedEventLoopGroup(numberOfThreads: 1)
         let mockProvider = MockProvider(expiration: .absolute(Date().addingTimeInterval(3600)))
-        let authorization = try Authorization(scopes: ["https://www.googleapis.com/auth/cloud-platform"], provider: mockProvider, eventLoopGroup: eventLoopGroup)
+        let authorization = Authorization(scopes: ["https://www.googleapis.com/auth/cloud-platform"], provider: mockProvider, eventLoopGroup: eventLoopGroup)
 
         let token1 = try await authorization.accessToken()
         #expect(token1 == "token1")
@@ -25,7 +25,7 @@ import Foundation
     @Test func getAccessTokenExpiredTwice() async throws {
         let eventLoopGroup = MultiThreadedEventLoopGroup(numberOfThreads: 1)
         let mockProvider = MockProvider(expiration: .always)
-        let authorization = try Authorization(scopes: ["https://www.googleapis.com/auth/cloud-platform"], provider: mockProvider, eventLoopGroup: eventLoopGroup)
+        let authorization = Authorization(scopes: ["https://www.googleapis.com/auth/cloud-platform"], provider: mockProvider, eventLoopGroup: eventLoopGroup)
 
         let token1 = try await authorization.accessToken()
         #expect(token1 == "token1")

@@ -17,7 +17,7 @@ public actor Authorization {
         case serviceAccount(Data)
     }
 
-    public init(scopes: [Scope], provider: Provider = DefaultProvider.shared, eventLoopGroup: EventLoopGroup) throws {
+    public init(scopes: [Scope], provider: Provider = DefaultProvider.shared, eventLoopGroup: EventLoopGroup) {
         self.scopes = scopes
         self.provider = provider
         self.eventLoopGroup = eventLoopGroup
