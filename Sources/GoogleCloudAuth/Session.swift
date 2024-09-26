@@ -19,6 +19,8 @@ extension Session {
 
 extension Session.Expiration: Sendable {}
 
+extension Session.Expiration: Equatable {}
+
 extension Session {
 
     public var isExpired: Bool {
