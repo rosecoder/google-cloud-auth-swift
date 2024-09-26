@@ -16,9 +16,21 @@ public actor DefaultProvider: Provider {
     struct NotImplementedError: Error {}
 
     func getProvider() async throws -> Provider {
+        // 1. User explicitly set a provider
         if let provider = await DefaultProviderCoordinator.shared.provider {
             return provider
         }
+
+        // 2. Try to use default service account credentials
+        if let serviceAccountProvider = try ServiceAccountProvider() {
+            return serviceAccountProvider
+        }
+
+        // 3. Try to use gcloud configured credentials
+        // TODO: Implement
+
+        // 4. Fallback to assume running in GCP
+        // TODO: Implement
 
         throw NotImplementedError()
     }
