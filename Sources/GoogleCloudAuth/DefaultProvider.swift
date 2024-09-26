@@ -13,8 +13,6 @@ public actor DefaultProvider: Provider {
         try await getProvider().shutdown()
     }
 
-    struct NotImplementedError: Error {}
-
     func getProvider() async throws -> Provider {
         // 1. User explicitly set a provider
         if let provider = await DefaultProviderCoordinator.shared.provider {
@@ -30,9 +28,7 @@ public actor DefaultProvider: Provider {
         // TODO: Implement
 
         // 4. Fallback to assume running in GCP
-        // TODO: Implement
-
-        throw NotImplementedError()
+        return MetadataProvider()
     }
 }
 

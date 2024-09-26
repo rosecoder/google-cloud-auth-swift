@@ -8,9 +8,7 @@ import NIO
         let eventLoopGroup = MultiThreadedEventLoopGroup(numberOfThreads: 1)
 
         // Default
-        await #expect(throws: DefaultProvider.NotImplementedError.self) {
-            try await DefaultProvider.shared.getProvider()
-        }
+        #expect(try await DefaultProvider.shared.getProvider() is MetadataProvider)
 
         // Bootstrap 1
         let mockProvider1 = MockProvider()
