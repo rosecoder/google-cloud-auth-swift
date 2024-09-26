@@ -24,7 +24,7 @@ import NIOHTTP1
 
     @Test func createSessionShouldThrowRunningInNonGCPEnvironment() async throws {
         let eventLoopGroup = MultiThreadedEventLoopGroup(numberOfThreads: 1)
-        let provider = MetadataProvider(timeout: .milliseconds(10))
+        let provider = MetadataProvider(timeout: .milliseconds(100))
         await #expect(throws: MetadataProvider.NotInGCPEnvironmentError.self) {
             try await provider.createSession(scopes: ["https://www.googleapis.com/auth/cloud-platform"], eventLoopGroup: eventLoopGroup)
         }
