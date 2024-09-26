@@ -51,7 +51,7 @@ import Foundation
             self.expiration = expiration
         }
 
-        func createSession(eventLoopGroup: EventLoopGroup) async throws -> Session {
+        func createSession(scopes: [Scope], eventLoopGroup: EventLoopGroup) async throws -> Session {
             createSessionCallCount += 1
             return Session(
                 accessToken: "token\(createSessionCallCount)",

@@ -5,8 +5,8 @@ public actor DefaultProvider: Provider {
 
     public static let shared = DefaultProvider()
 
-    public func createSession(eventLoopGroup: EventLoopGroup) async throws -> Session {
-        try await getProvider().createSession(eventLoopGroup: eventLoopGroup)
+    public func createSession(scopes: [Scope], eventLoopGroup: EventLoopGroup) async throws -> Session {
+        try await getProvider().createSession(scopes: scopes, eventLoopGroup: eventLoopGroup)
     }
 
     public func shutdown() async throws {

@@ -5,7 +5,7 @@ import NIO
 
 public actor Authorization {
 
-    public let scopes: [String]
+    public let scopes: [Scope]
     private let provider: Provider
     private let eventLoopGroup: EventLoopGroup
     private let logger = Logger(label: "authorization")
@@ -17,7 +17,7 @@ public actor Authorization {
         case serviceAccount(Data)
     }
 
-    public init(scopes: [String], provider: Provider = DefaultProvider.shared, eventLoopGroup: EventLoopGroup) throws {
+    public init(scopes: [Scope], provider: Provider = DefaultProvider.shared, eventLoopGroup: EventLoopGroup) throws {
         self.scopes = scopes
         self.provider = provider
         self.eventLoopGroup = eventLoopGroup
@@ -36,9 +36,9 @@ public actor Authorization {
             }
             return session
         }
-        let task = Task { [provider, eventLoopGroup] in
+        let task = Task { [scopes, provider, eventLoopGroup] in
             try await withRetryableTask(logger: logger, operation: {
-                try await provider.createSession(eventLoopGroup: eventLoopGroup)
+                try await provider.createSession(scopes: scopes, eventLoopGroup: eventLoopGroup)
             }, file: file, function: function, line: line)
         }
         self.currentSessionTask = task

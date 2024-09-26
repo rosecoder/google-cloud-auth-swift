@@ -19,7 +19,7 @@ import NIO
         await AuthorizationSystem.bootstrap(mockProvider1)
 
         #expect(try await DefaultProvider.shared.getProvider() as? MockProvider === mockProvider1)
-        #expect(try await DefaultProvider.shared.createSession(eventLoopGroup: eventLoopGroup).accessToken == "1")
+        #expect(try await DefaultProvider.shared.createSession(scopes: ["https://www.googleapis.com/auth/cloud-platform"], eventLoopGroup: eventLoopGroup).accessToken == "1")
         await #expect(mockProvider1.createSessionCallCount == 1)
         await #expect(mockProvider1.shutdownCallCount == 0)
 
@@ -45,7 +45,7 @@ import NIO
         var createSessionCallCount = 0
         var shutdownCallCount = 0
 
-        func createSession(eventLoopGroup: EventLoopGroup) async throws -> Session {
+        func createSession(scopes: [Scope], eventLoopGroup: EventLoopGroup) async throws -> Session {
             createSessionCallCount += 1
             return Session(
                 accessToken: "\(createSessionCallCount)",
