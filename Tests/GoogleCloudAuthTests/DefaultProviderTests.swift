@@ -16,7 +16,7 @@ import NIO
         await #expect(mockProvider1.shutdownCallCount == 0)
         await AuthorizationSystem.bootstrap(mockProvider1)
 
-        #expect(try await DefaultProvider.shared.getProvider() as? MockProvider === mockProvider1)
+        #expect(try await DefaultProvider.shared.provider as? MockProvider === mockProvider1)
         #expect(try await DefaultProvider.shared.createSession(scopes: ["https://www.googleapis.com/auth/cloud-platform"], eventLoopGroup: eventLoopGroup).accessToken == "1")
         await #expect(mockProvider1.createSessionCallCount == 1)
         await #expect(mockProvider1.shutdownCallCount == 0)
@@ -29,7 +29,7 @@ import NIO
 
         await #expect(mockProvider1.shutdownCallCount == 1)
 
-        #expect(try await DefaultProvider.shared.getProvider() as? MockProvider === mockProvider2)
+        #expect(try await DefaultProvider.shared.provider as? MockProvider === mockProvider2)
 
         // Shutdown
         try await DefaultProvider.shared.shutdown()
