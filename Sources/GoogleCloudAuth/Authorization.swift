@@ -1,5 +1,6 @@
 import Foundation
 import Logging
+import Tracing
 import RetryableTask
 import NIO
 
@@ -55,7 +56,9 @@ public actor Authorization {
         }
         let task = Task { [scopes, provider, eventLoopGroup] in
             try await withRetryableTask(logger: logger, operation: {
-                try await provider.createSession(scopes: scopes, eventLoopGroup: eventLoopGroup)
+                try await withSpan("authorization.create-session", ofKind: .client) { _ in
+                    try await provider.createSession(scopes: scopes, eventLoopGroup: eventLoopGroup)
+                }
             }, file: file, function: function, line: line)
         }
         self.currentSessionTask = task
