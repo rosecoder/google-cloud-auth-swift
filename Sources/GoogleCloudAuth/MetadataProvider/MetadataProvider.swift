@@ -1,6 +1,7 @@
 import NIO
 import Foundation
 import AsyncHTTPClient
+import NIOFoundationCompat
 
 public actor MetadataProvider: Provider {
 

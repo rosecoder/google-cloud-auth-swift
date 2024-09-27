@@ -2,6 +2,7 @@ import NIO
 import Foundation
 import AsyncHTTPClient
 import JWTKit
+import NIOFoundationCompat
 
 public actor ServiceAccountProvider: Provider {
 
