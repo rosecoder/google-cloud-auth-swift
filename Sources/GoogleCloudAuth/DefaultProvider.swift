@@ -1,8 +1,10 @@
 import NIO
 import Logging
 
+/// A default implementation of the `Provider` protocol that manages authentication sessions.
 public actor DefaultProvider: Provider {
 
+    /// A shared instance of `DefaultProvider` for convenient access.
     public static let shared = DefaultProvider()
 
     public func createSession(scopes: [Scope], eventLoopGroup: EventLoopGroup) async throws -> Session {
@@ -62,10 +64,14 @@ https://cloud.google.com/docs/authentication/.
     }
 }
 
+/// A system for managing the default authorization provider.
 public struct AuthorizationSystem {
 
     private static let logger = Logger(label: "authorization.system")
 
+    /// Bootstraps the authorization system with a custom provider.
+    /// - Parameter defaultProvider: The custom `Provider` to use as the default.
+    /// - Precondition: The `defaultProvider` must not be an instance of `DefaultProvider`.
     public static func bootstrap(_ defaultProvider: Provider) async {
         precondition(!(defaultProvider is DefaultProvider), "Must not use default provider as authorization system. This may result in recursion.")
 
