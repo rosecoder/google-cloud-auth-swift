@@ -27,6 +27,7 @@ let package = Package(
         .product(name: "Logging", package: "swift-log"),
         .product(name: "Tracing", package: "swift-distributed-tracing"),
         .product(name: "NIO", package: "swift-nio"),
+        .product(name: "NIOFoundationCompat", package: "swift-nio"),
         .product(name: "RetryableTask", package: "retryable-task"),
         .product(name: "AsyncHTTPClient", package: "async-http-client"),
         .product(name: "JWTKit", package: "jwt-kit"),
