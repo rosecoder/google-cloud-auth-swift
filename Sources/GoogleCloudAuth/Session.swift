@@ -33,9 +33,14 @@ extension Session {
 
   /// Indicates whether the session is currently expired.
   public var isExpired: Bool {
+    isExpired(within: 0)
+  }
+
+  /// Indicates whether the session is expired or expires within `interval` seconds.
+  func isExpired(within interval: TimeInterval) -> Bool {
     switch expiration {
     case .absolute(let date):
-      return date < Date()
+      return date < Date().addingTimeInterval(interval)
     case .never:
       return false
     case .always:
