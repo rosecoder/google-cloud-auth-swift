@@ -12,27 +12,42 @@ public actor DefaultProvider: Provider {
     try await provider.createSession(scopes: scopes, eventLoopGroup: eventLoopGroup)
   }
 
+  /// Shuts down the resolved provider. A new provider is resolved if the default provider is
+  /// used again.
   public func shutdown() async throws {
-    try await _providerTask?.value.shutdown()
+    // Cleared before suspending, so concurrent calls don't shut down the same provider twice.
+    guard let providerTask = _providerTask else {
+      return
+    }
     _providerTask = nil
+    try await providerTask.value.shutdown()
   }
 
   private var _providerTask: Task<Provider, Error>?
 
   var provider: Provider {
     get async throws {
+      let task: Task<Provider, Error>
       if let _providerTask {
-        return try await _providerTask.value
+        task = _providerTask
+      } else {
+        task = Task { try await resolveProvider() }
+        self._providerTask = task
       }
-      let task = Task { try await resolveProvider() }
-      self._providerTask = task
-      return try await task.value
+      do {
+        return try await task.value
+      } catch {
+        // Failed resolutions aren't cached, so resolving is retried on the next use.
+        if _providerTask == task {
+          _providerTask = nil
+        }
+        throw error
+      }
     }
   }
 
   fileprivate func resetProvider() async throws {
-    try await _providerTask?.value.shutdown()
-    _providerTask = nil
+    try await shutdown()
   }
 
   private nonisolated func resolveProvider() async throws -> Provider {

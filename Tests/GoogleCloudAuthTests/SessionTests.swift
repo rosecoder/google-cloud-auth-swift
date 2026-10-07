@@ -18,4 +18,11 @@ import Testing
     let neverExpiringSession = Session(accessToken: "never", expiration: .never)
     #expect(neverExpiringSession.isExpired == false)
   }
+
+  @Test func expirationWithinInterval() {
+    let session = Session(accessToken: "soon", expiration: .absolute(Date().addingTimeInterval(30)))
+    #expect(session.isExpired == false)
+    #expect(session.isExpired(within: 60) == true)
+    #expect(session.isExpired(within: 10) == false)
+  }
 }

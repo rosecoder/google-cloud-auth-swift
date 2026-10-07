@@ -53,9 +53,15 @@ public actor Authorization {
     async throws -> Session
   {
     if let currentSessionTask {
-      let session = try await currentSessionTask.value
-      if session.isExpired {
-        self.currentSessionTask = nil
+      let session: Session
+      do {
+        session = try await currentSessionTask.value
+      } catch {
+        clearSessionTask(currentSessionTask)
+        throw error
+      }
+      if session.isExpired(within: Self.refreshMargin) {
+        clearSessionTask(currentSessionTask)
         return try await getSession(file: file, function: function, line: line)
       }
       return session
@@ -71,12 +77,34 @@ public actor Authorization {
     }
     self.currentSessionTask = task
 
-    return try await task.value
+    do {
+      return try await task.value
+    } catch {
+      clearSessionTask(task)
+      throw error
+    }
+  }
+
+  /// Sessions are refreshed this long before they expire, so tokens don't expire in flight.
+  static let refreshMargin: TimeInterval = 60
+
+  /// Clears the cached task unless another call already replaced it, so failures and expired
+  /// sessions aren't returned to later callers.
+  private func clearSessionTask(_ task: Task<Session, Error>) {
+    if currentSessionTask == task {
+      currentSessionTask = nil
+    }
   }
 
   /// Shuts down the authorization provider.
+  ///
+  /// `DefaultProvider.shared` is shared by all users in the process and is not shut down. Call
+  /// `DefaultProvider.shared.shutdown()` directly to release its resources.
   /// - Throws: An error if the shutdown process fails.
   public func shutdown() async throws {
+    if provider is DefaultProvider {
+      return
+    }
     try await provider.shutdown()
   }
 }

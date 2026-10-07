@@ -74,4 +74,33 @@ import Testing
     try await DefaultProvider.shared.shutdown()
     await #expect(mockProvider.shutdownCallCount == 1)  // should still be 1 because it's already shutdown
   }
+
+  @Test func concurrentShutdownShutsDownProviderOnce() async throws {
+    let mockProvider = MockProvider()
+    await AuthorizationSystem.bootstrap(mockProvider)
+    _ = try await DefaultProvider.shared.provider
+
+    async let first: Void = DefaultProvider.shared.shutdown()
+    async let second: Void = DefaultProvider.shared.shutdown()
+    _ = try await (first, second)
+
+    await #expect(mockProvider.shutdownCallCount == 1)
+  }
+
+  @Test func authorizationShutdownKeepsSharedProviderRunning() async throws {
+    let eventLoopGroup = MultiThreadedEventLoopGroup(numberOfThreads: 1)
+    let mockProvider = MockProvider()
+    await AuthorizationSystem.bootstrap(mockProvider)
+
+    let authorization = Authorization(
+      scopes: ["https://www.googleapis.com/auth/cloud-platform"], eventLoopGroup: eventLoopGroup)
+    _ = try await authorization.accessToken()
+    try await authorization.shutdown()
+
+    await #expect(mockProvider.shutdownCallCount == 0)
+    #expect(try await DefaultProvider.shared.provider as? MockProvider === mockProvider)
+
+    try await DefaultProvider.shared.shutdown()
+    await #expect(mockProvider.shutdownCallCount == 1)
+  }
 }
