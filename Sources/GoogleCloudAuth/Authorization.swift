@@ -12,9 +12,12 @@ public actor Authorization {
 
   private let provider: Provider
   private let eventLoopGroup: EventLoopGroup
+  private let retryPolicy: RetryPolicy
+  private let now: @Sendable () -> Date
   private let logger = Logger(label: "authorization")
 
-  private var currentSessionTask: Task<Session, Error>?
+  private var cachedSession: CachedSession?
+  private var refreshTask: Task<Session, Error>?
 
   /// Initializes a new Authorization instance.
   /// - Parameters:
@@ -24,9 +27,23 @@ public actor Authorization {
   public init(
     scopes: [Scope], provider: Provider = DefaultProvider.shared, eventLoopGroup: EventLoopGroup
   ) {
+    self.init(
+      scopes: scopes, provider: provider, eventLoopGroup: eventLoopGroup,
+      retryPolicy: BackoffRetryPolicy(), now: { Date() })
+  }
+
+  init(
+    scopes: [Scope],
+    provider: Provider,
+    eventLoopGroup: EventLoopGroup,
+    retryPolicy: RetryPolicy,
+    now: @escaping @Sendable () -> Date
+  ) {
     self.scopes = scopes
     self.provider = provider
     self.eventLoopGroup = eventLoopGroup
+    self.retryPolicy = retryPolicy
+    self.now = now
   }
 
   /// Retrieves an access token for the authorized session.
@@ -43,6 +60,10 @@ public actor Authorization {
   }
 
   /// Retrieves or creates a new authorized session.
+  ///
+  /// Sessions are refreshed in the background shortly before they expire, while the current
+  /// session keeps being returned. Concurrent callers share a single in-progress refresh, and
+  /// failed refreshes are not cached.
   /// - Parameters:
   ///   - file: The file where this method is called. Defaults to the current file.
   ///   - function: The function where this method is called. Defaults to the current function.
@@ -52,48 +73,51 @@ public actor Authorization {
   public func getSession(file: String = #fileID, function: String = #function, line: UInt = #line)
     async throws -> Session
   {
-    if let currentSessionTask {
-      let session: Session
-      do {
-        session = try await currentSessionTask.value
-      } catch {
-        clearSessionTask(currentSessionTask)
-        throw error
+    let now = self.now()
+    if let cachedSession, cachedSession.isUsable(at: now) {
+      if cachedSession.needsRefresh(at: now) {
+        _ = refresh(file: file, function: function, line: line)
       }
-      if session.isExpired(within: Self.refreshMargin) {
-        clearSessionTask(currentSessionTask)
-        return try await getSession(file: file, function: function, line: line)
-      }
-      return session
+      return cachedSession.session
     }
-    let task = Task { [scopes, provider, eventLoopGroup] in
-      try await withRetryableTask(
-        logger: logger,
-        operation: {
-          try await withSpan("authorization.create-session", ofKind: .client) { _ in
-            try await provider.createSession(scopes: scopes, eventLoopGroup: eventLoopGroup)
-          }
-        }, file: file, function: function, line: line)
-    }
-    self.currentSessionTask = task
-
-    do {
-      return try await task.value
-    } catch {
-      clearSessionTask(task)
-      throw error
-    }
+    return try await refresh(file: file, function: function, line: line).value
   }
 
   /// Sessions are refreshed this long before they expire, so tokens don't expire in flight.
-  static let refreshMargin: TimeInterval = 60
+  static let refreshMargin: TimeInterval = 4 * 60
 
-  /// Clears the cached task unless another call already replaced it, so failures and expired
-  /// sessions aren't returned to later callers.
-  private func clearSessionTask(_ task: Task<Session, Error>) {
-    if currentSessionTask == task {
-      currentSessionTask = nil
+  /// Sessions expiring within this interval are not returned without waiting for a refresh.
+  static let expiryMargin: TimeInterval = 10
+
+  /// Returns the in-progress refresh, or starts one if none is running.
+  private func refresh(file: String, function: String, line: UInt) -> Task<Session, Error> {
+    if let refreshTask {
+      return refreshTask
     }
+    let task = Task { [scopes, provider, eventLoopGroup, retryPolicy, logger] in
+      // Only one refresh runs at a time and this body runs after `refreshTask` is assigned.
+      defer { refreshTask = nil }
+      let fetchDate = now()
+      let session: Session
+      do {
+        session = try await withRetryableTask(
+          policy: retryPolicy,
+          logger: logger,
+          operation: {
+            try await withSpan("authorization.create-session", ofKind: .client) { _ in
+              try await provider.createSession(scopes: scopes, eventLoopGroup: eventLoopGroup)
+            }
+          }, file: file, function: function, line: line)
+      } catch {
+        logger.error(
+          "Failed to create session: \(error)", file: file, function: function, line: line)
+        throw error
+      }
+      cachedSession = CachedSession(session: session, fetchDate: fetchDate)
+      return session
+    }
+    refreshTask = task
+    return task
   }
 
   /// Shuts down the authorization provider.
@@ -102,9 +126,47 @@ public actor Authorization {
   /// `DefaultProvider.shared.shutdown()` directly to release its resources.
   /// - Throws: An error if the shutdown process fails.
   public func shutdown() async throws {
+    refreshTask?.cancel()
     if provider is DefaultProvider {
       return
     }
     try await provider.shutdown()
+  }
+}
+
+extension Authorization {
+
+  /// A session together with the dates it should be refreshed and stop being used.
+  struct CachedSession: Sendable {
+
+    let session: Session
+    let refreshDate: Date
+    let expiryDate: Date
+
+    /// Margins are capped relative to the session's lifetime, so sessions with a lifetime shorter
+    /// than the margins are still reused instead of being fetched on every call.
+    init(session: Session, fetchDate: Date) {
+      self.session = session
+      switch session.expiration {
+      case .absolute(let date):
+        let lifetime = max(date.timeIntervalSince(fetchDate), 0)
+        refreshDate = date.addingTimeInterval(-min(Authorization.refreshMargin, lifetime / 2))
+        expiryDate = date.addingTimeInterval(-min(Authorization.expiryMargin, lifetime / 4))
+      case .never:
+        refreshDate = .distantFuture
+        expiryDate = .distantFuture
+      case .always:
+        refreshDate = .distantPast
+        expiryDate = .distantPast
+      }
+    }
+
+    func isUsable(at date: Date) -> Bool {
+      date < expiryDate
+    }
+
+    func needsRefresh(at date: Date) -> Bool {
+      date >= refreshDate
+    }
   }
 }
